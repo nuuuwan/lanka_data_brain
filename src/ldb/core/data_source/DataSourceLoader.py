@@ -1,7 +1,8 @@
 import os
 import tempfile
 
-from utils import Git, Log, JSONFile
+from utils import Git, JSONFile, Log
+
 from ldb.core.data_source.DataSourceBase import DataSourceBase
 
 log = Log('DataSource')
@@ -34,7 +35,7 @@ class DataSourceLoader(DataSourceBase):
     @staticmethod
     def from_file(file_path: str):
         return DataSourceLoader.from_dict(JSONFile(file_path).read())
-    
+
     @staticmethod
     def list_all() -> list:
         DataSourceLoader.download_data()

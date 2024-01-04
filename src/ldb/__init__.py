@@ -1,1 +1,2 @@
-from ldb.core.data_source.DataSource import DataSource
+from ldb.core import DataSource
+from ldb.models.Projector import Projector

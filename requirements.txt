@@ -1,1 +1,4 @@
 utils-nuuuwan
+matplotlib
+scikit-learn
+numpy
