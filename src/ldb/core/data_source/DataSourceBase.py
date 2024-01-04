@@ -107,8 +107,11 @@ class DataSourceBase:
     def values(self) -> list:
         return list(self.cleaned_data.values())
 
-    def get_correlation_coefficient(self, other: 'DataSourceBase') -> float:
+    def get_correlation_coefficient(self, other: 'DataSourceBase', min_common_values: int) -> float:
         common_keys = set(self.keys).intersection(other.keys)
+        if len(common_keys) < min_common_values:
+            return None
+
         self_common_values = [self.cleaned_data[k] for k in common_keys]
         other_common_values = [other.cleaned_data[k] for k in common_keys]
         correlation_matrix = np.corrcoef(

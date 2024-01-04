@@ -82,7 +82,9 @@ class DataSourceLoader(DataSourceBase):
         for ds in ds_list:
             if ds.short_name == self.short_name:
                 continue
-            corr = self.get_correlation_coefficient(ds)
+            corr = self.get_correlation_coefficient(other=ds, min_common_values=n)
+            if corr is None:
+                continue
             if corr > 0.9999:
                 if ignore_exact:
                     continue

@@ -11,6 +11,9 @@ import json
 from ldb.core import DataSource
 
 log = Log('VectorAutoRegression')
+DIR_DATA = 'data'
+DIR_FORECASTS = os.path.join(DIR_DATA, 'forecasts')
+DIR_CHARTS = os.path.join(DIR_DATA, 'charts')
 
 
 class VectorAutoRegression:
@@ -99,7 +102,7 @@ class VectorAutoRegression:
             df_forecast.loc[t] = new_row
 
         df_forecast = df_forecast.sort_index()
-        df_forecast.to_csv(os.path.join('data', 'forecasts', f'{self.base_name}.csv'))
+        df_forecast.to_csv(os.path.join(DIR_FORECASTS, f'{self.base_name}.csv'))
         log.info(f'Saved forecast to {self.base_name}.csv.')
         return df_forecast
 
@@ -123,14 +126,24 @@ class VectorAutoRegression:
         plt.grid()
         plt.gcf().set_size_inches(12, 4.5)
         
-        image_path = os.path.join('data', 'charts', f'{self.base_name}.png')
+        image_path = os.path.join(DIR_CHARTS, f'{self.base_name}.png')
         plt.savefig(image_path)
         plt.close()
         
         log.info(f'Saved chart to {image_path}.')
         
     @staticmethod
+    def init_dirs():
+        if not os.path.exists(DIR_DATA):
+            os.mkdir(DIR_DATA)
+        if not os.path.exists(DIR_FORECASTS):
+            os.mkdir(DIR_FORECASTS)
+        if not os.path.exists(DIR_CHARTS):
+            os.mkdir(DIR_CHARTS)
+
+    @staticmethod
     def forecast(ds, maxlags: int, steps: int, min_abs_corr: float):
+        VectorAutoRegression.init_dirs()
         n = 100
         if maxlags:
             n = max(n, maxlags * 2 + steps)
