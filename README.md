@@ -12,4 +12,6 @@ This repository contains about 4,000 time series related to Sri Lanka.
 
 ## "Brain" Model
 
-We train a unified machine learning model using all the time series, which is, in turn, used to predict trends for each of the time series.
+Our Model is based on [Vector Autoregression (VAR)](https://en.wikipedia.org/wiki/Vector_autoregression). VAR is good for multivariate time series - i.e. models interdependencies between multiple series.
+
+

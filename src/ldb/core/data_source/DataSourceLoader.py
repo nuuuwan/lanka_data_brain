@@ -1,5 +1,6 @@
 import os
 import tempfile
+from functools import cache
 
 from utils import Git, JSONFile, Log
 
@@ -37,6 +38,7 @@ class DataSourceLoader(DataSourceBase):
         return DataSourceLoader.from_dict(JSONFile(file_path).read())
 
     @staticmethod
+    @cache
     def list_all() -> list:
         DataSourceLoader.download_data()
         dir_sources = os.path.join(
@@ -55,3 +57,12 @@ class DataSourceLoader(DataSourceBase):
 
         log.info(f'Found {len(ds_list):,} data sources')
         return ds_list
+
+    @staticmethod
+    @cache
+    def list_from_search(search_key: str) -> list:
+        ds_list = DataSourceLoader.list_all()
+        return [
+            ds for ds in ds_list
+            if search_key.lower() in ds.short_name.lower()
+        ]

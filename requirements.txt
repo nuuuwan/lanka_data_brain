@@ -2,3 +2,5 @@ utils-nuuuwan
 matplotlib
 scikit-learn
 numpy
+statsmodels
+pandas
