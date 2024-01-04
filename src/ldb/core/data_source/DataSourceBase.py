@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 
+import numpy as np
 import pandas as pd
 from utils import Log
 
@@ -39,9 +40,9 @@ class DataSourceBase:
     cleaned_data: dict
     # raw_data: dict
 
-    @staticmethod
-    def from_dict(data: dict):
-        return DataSourceBase(
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
             source_id=data['source_id'],
             # category=data['category'],
             sub_category=data['sub_category'],
@@ -73,12 +74,14 @@ class DataSourceBase:
     def df_key_col(self) -> str:
         return 't'
 
-    @cached_property
     def __len__(self) -> int:
         return len(self.cleaned_data)
 
     def __str__(self) -> str:
         return f'DataSource("{self.short_name}", n={len(self.cleaned_data):,})'
+
+    def __repr__(self) -> str:
+        return str(self)
 
     @property
     def df(self) -> pd.DataFrame:
@@ -95,3 +98,20 @@ class DataSourceBase:
                 self.df_key_col,
                 self.df_val_col])
         return df
+
+    @cached_property
+    def keys(self) -> list:
+        return list(self.cleaned_data.keys())
+
+    @cached_property
+    def values(self) -> list:
+        return list(self.cleaned_data.values())
+
+    def get_correlation_coefficient(self, other: 'DataSourceBase') -> float:
+        common_keys = set(self.keys).intersection(other.keys)
+        self_common_values = [self.cleaned_data[k] for k in common_keys]
+        other_common_values = [other.cleaned_data[k] for k in common_keys]
+        correlation_matrix = np.corrcoef(
+            self_common_values, other_common_values)
+        correlation_coefficient = correlation_matrix[0, 1]
+        return correlation_coefficient

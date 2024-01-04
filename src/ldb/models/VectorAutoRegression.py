@@ -1,10 +1,12 @@
 import datetime
+import os
 from functools import cached_property
 
 import matplotlib.pyplot as plt
 import pandas as pd
 from statsmodels.tsa.api import VAR
-from utils import SECONDS_IN, Log
+from utils import SECONDS_IN, Log, hashx
+import json
 
 from ldb.core import DataSource
 
@@ -14,10 +16,18 @@ log = Log('VectorAutoRegression')
 class VectorAutoRegression:
     def __init__(self, *ds_list: list[DataSource]):
         self.ds_list = ds_list
+        log.info(f'Created VectorAutoRegression with {ds_list} data sources.')
 
     @cached_property
     def first_ds(self):
         return self.ds_list[0]
+
+    @cached_property
+    def base_name(self) -> str:
+        h = hashx.md5(json.dumps([str(ds) for ds in self.ds_list]))
+        return self.first_ds.df_val_col + '-' + h[:8]
+
+   
 
     @cached_property
     def df_key_col(self):
@@ -60,19 +70,25 @@ class VectorAutoRegression:
 
         df_merged = df_merged.set_index(self.df_key_col)
         df_merged = df_merged.sort_index()
+        
+
         return df_merged
 
     def get_forecast_df(self, maxlags: int, steps: int):
         df = self.df_merged.copy()
+        df_diffed = df.diff().dropna()
 
-        model = VAR(df)
-        results = model.fit(
-            maxlags=maxlags, ic='fpe', trend='n', verbose=True
+
+        model = VAR(df_diffed)
+        model_result = model.fit(maxlags=maxlags, ic='aic', trend='n')
+
+        forecast_diffed = model_result.forecast(
+            df_diffed.values[-model_result.k_ar:], steps=steps
         )
+        m = len(self.ds_list)
+        forecast = df.iloc[-1].values.reshape(1, m) + forecast_diffed.cumsum(axis=1)
 
-        forecast = results.forecast(df.values[-results.k_ar:], steps=steps)
-
-        df = self.df_merged.copy()
+        df_forecast = self.df_merged.copy()
         for i, row in enumerate(list(forecast)):
             ut = self.last_ut + (i + 1) * self.avg_gap
             t = datetime.datetime.fromtimestamp(ut)
@@ -80,17 +96,17 @@ class VectorAutoRegression:
             new_row = {}
             for i_ds, ds in enumerate(self.ds_list):
                 new_row[ds.df_val_col] = row[i_ds]
-            df.loc[t] = new_row
+            df_forecast.loc[t] = new_row
 
-        df = df.sort_index()
+        df_forecast = df_forecast.sort_index()
+        df_forecast.to_csv(os.path.join('data', 'forecasts', f'{self.base_name}.csv'))
+        log.info(f'Saved forecast to {self.base_name}.csv.')
+        return df_forecast
 
-        return df
-
-    def plot(self, maxlags: int, steps: int, display: int):
-        first_ds = self.first_ds
-        df = self.get_forecast_df(maxlags=maxlags, steps=steps)
-        log.debug(str(df))
+    def plot(self, df: pd.DataFrame, steps: int, ds: DataSource):
+        display = steps * 10
         df = df[-display:]
+
         color = [
             'blue' if i < display - steps else 'lightblue'
             for i in range(display)
@@ -98,12 +114,33 @@ class VectorAutoRegression:
 
         plt.bar(
             df.index,
-            df[first_ds.df_val_col],
+            df[ds.df_val_col],
             width=24,
             color=color,
         )
-        plt.title(first_ds.short_name)
+        plt.title(ds.short_name)
         plt.xlabel("Time")
         plt.grid()
-        plt.gcf().set_size_inches(8, 4.5)
-        plt.show()
+        plt.gcf().set_size_inches(12, 4.5)
+        
+        image_path = os.path.join('data', 'charts', f'{self.base_name}.png')
+        plt.savefig(image_path)
+        plt.close()
+        
+        log.info(f'Saved chart to {image_path}.')
+        
+    @staticmethod
+    def forecast(ds, maxlags: int, steps: int, min_abs_corr: float):
+        n = 100
+        if maxlags:
+            n = max(n, maxlags * 2 + steps)
+        corr_ds_list = ds.list_correlated(
+            n=n, min_abs_corr=min_abs_corr, ignore_exact=True
+        )
+        if len(corr_ds_list) <= 1:
+            log.warning(f'No correlated data sources found for {ds}.')
+            return
+        
+        var = VectorAutoRegression(ds, *[info['ds'] for info in corr_ds_list])
+        df_forecast = var.get_forecast_df(maxlags=maxlags, steps=steps)
+        var.plot(df_forecast, steps, ds)
